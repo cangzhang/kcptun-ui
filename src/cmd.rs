@@ -6,6 +6,7 @@ use std::{
     fs::{self, File},
     io::{self, Cursor},
     path::Path,
+    process::{Command, Stdio},
 };
 use tar::Archive;
 
@@ -47,7 +48,7 @@ pub struct Asset {
 
 static APP_USER_AGENT: &str = "KCPTUN_UI v1";
 
-async fn check_bin_and_download() -> Result<String> {
+async fn check_bin_or_download() -> Result<String> {
     let os = match env::consts::OS {
         "windows" => "windows",
         "linux" => "linux",
@@ -64,9 +65,10 @@ async fn check_bin_and_download() -> Result<String> {
         return Err(anyhow!("Cannot determine `OS`/`ARCH`"));
     }
 
-    let bin_name = format!("client_{}_amd64.exe", os);
+    let suffix = if os == "windows" { ".exe" } else { "" };
+    let bin_name = format!("client_{}_{}{}", os, arch, suffix);
     let bin_path = std::env::current_dir().unwrap().join("bin").join(bin_name);
-    println!("{}", bin_path.to_string_lossy());
+    // println!("{}", bin_path.to_string_lossy());
     if bin_path.exists() {
         return Ok(String::from(bin_path.to_string_lossy()));
     }
@@ -109,14 +111,37 @@ async fn check_bin_and_download() -> Result<String> {
     Ok(String::from(bin_path.to_string_lossy()))
 }
 
+fn check_bin_version(bin_path: &String) -> Result<String> {
+    let child = Command::new(bin_path)
+        .args(["-v"])
+        .stdout(Stdio::piped())
+        .spawn()?;
+
+    let ver_stdout = child.wait_with_output()?;
+    Ok(String::from_utf8(ver_stdout.stdout).unwrap())
+}
+
+async fn make_bin() -> Result<String> {
+    let bin_path = check_bin_or_download().await?;
+    match check_bin_version(&bin_path) {
+        Ok(ver_output) => {
+            println!("{}", ver_output);
+            Ok(bin_path)
+        }
+        Err(e) => Err(e),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[tokio::test]
     async fn test_bin() {
-        match check_bin_and_download().await {
-            Ok(p) => println!("== check ok ==, {}", p),
+        match make_bin().await {
+            Ok(p) => {
+                println!("bin path: {}", p);
+            }
             Err(e) => println!("{:?}", e),
         }
     }
