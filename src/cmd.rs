@@ -1,6 +1,7 @@
 use std::env;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
 use std::process::{Command, Stdio};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn run() -> Result<(), Error> {
     println!("current dir {:?}", env::current_dir());
@@ -17,7 +18,14 @@ pub fn run() -> Result<(), Error> {
     reader
         .lines()
         .filter_map(|line| line.ok())
-        .for_each(|line| println!("{}", line));
+        .for_each(|line| {
+            let start = SystemTime::now();
+            let since_the_epoch = start
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards");
+
+            println!("{:?} {line}", since_the_epoch);
+        });
 
     Ok(())
 }
@@ -28,6 +36,7 @@ mod tests {
 
     #[test]
     fn capture_stdout() {
-        run();
+        let r = run();
+        println!("{:?}", r);
     }
 }
