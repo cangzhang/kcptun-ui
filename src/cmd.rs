@@ -1,148 +1,33 @@
-use anyhow::{anyhow, Result};
-use flate2::read::GzDecoder;
-use serde::{Deserialize, Serialize};
-use std::{
-    env,
-    fs::{self, File},
-    io::{self, Cursor},
-    path::Path,
-    process::{Command, Stdio},
-};
-use tar::Archive;
+use std::env;
+use std::io::{BufRead, BufReader, Error, ErrorKind};
+use std::process::{Command, Stdio};
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct LatestReleaseResponse {
-    pub url: String,
-    pub assets_url: String,
-    pub upload_url: String,
-    pub html_url: String,
-    pub id: i64,
-    pub node_id: String,
-    pub tag_name: String,
-    pub target_commitish: String,
-    pub name: String,
-    pub draft: bool,
-    pub prerelease: bool,
-    pub created_at: String,
-    pub published_at: String,
-    pub assets: Vec<Asset>,
-    pub tarball_url: String,
-    pub zipball_url: String,
-    // pub body: String,
-}
+pub fn run() -> Result<(), Error> {
+    println!("current dir {:?}", env::current_dir());
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Asset {
-    pub url: String,
-    pub id: i64,
-    pub node_id: String,
-    pub name: String,
-    pub content_type: String,
-    pub state: String,
-    pub size: i64,
-    pub download_count: i64,
-    pub created_at: String,
-    pub updated_at: String,
-    pub browser_download_url: String,
-}
-
-static APP_USER_AGENT: &str = "KCPTUN_UI v1";
-
-async fn check_bin_or_download() -> Result<String> {
-    let os = match env::consts::OS {
-        "windows" => "windows",
-        "linux" => "linux",
-        "macos" => "darwin",
-        _ => "",
-    };
-    let arch = match env::consts::ARCH {
-        "x86" => "386",
-        "x86_64" => "amd64",
-        _ => "",
-    };
-
-    if os.chars().count() == 0 || arch.chars().count() == 0 {
-        return Err(anyhow!("Cannot determine `OS`/`ARCH`"));
-    }
-
-    let suffix = if os == "windows" { ".exe" } else { "" };
-    let bin_name = format!("client_{}_{}{}", os, arch, suffix);
-    let bin_path = std::env::current_dir().unwrap().join("bin").join(bin_name);
-    // println!("{}", bin_path.to_string_lossy());
-    if bin_path.exists() {
-        return Ok(String::from(bin_path.to_string_lossy()));
-    }
-
-    let tag = format!("{}-{}", os, arch);
-    let client = reqwest::Client::builder()
-        .user_agent(APP_USER_AGENT)
-        .build()?;
-    let json = client
-        .get("https://api.github.com/repos/xtaci/kcptun/releases/latest")
-        .send()
-        .await?
-        .json::<LatestReleaseResponse>()
-        .await?;
-
-    let mut asset = &Asset::default();
-    for a in json.assets.iter() {
-        if a.name.contains(&tag) {
-            asset = &a;
-            break;
-        }
-    }
-    let download_url = &asset.browser_download_url;
-    if download_url.chars().count() == 0 {
-        return Err(anyhow!("cannot find bin for {} from latest release", tag));
-    }
-
-    let resp = client.get(download_url).send().await?;
-    let mut gz_file = Cursor::new(resp.bytes().await?);
-
-    let tar_path = Path::new(".").join("bin").join(&asset.name);
-    fs::create_dir_all(tar_path.parent().unwrap())?;
-    let mut download_tar = File::create(&tar_path)?;
-    io::copy(&mut gz_file, &mut download_tar)?;
-
-    let tar_gz = File::open(tar_path)?;
-    let tar = GzDecoder::new(tar_gz);
-    let mut archive = Archive::new(tar);
-    archive.unpack("./bin")?;
-    Ok(String::from(bin_path.to_string_lossy()))
-}
-
-fn check_bin_version(bin_path: &String) -> Result<String> {
-    let child = Command::new(bin_path)
-        .args(["-v"])
+    let stdout = Command::new("./client_windows_amd64.exe")
+        .args(&["-c", "./config.json"])
         .stdout(Stdio::piped())
-        .spawn()?;
+        .spawn()?
+        .stdout
+        .ok_or_else(|| Error::new(ErrorKind::Other, "Could not capture standard output."))?;
 
-    let ver_stdout = child.wait_with_output()?;
-    Ok(String::from_utf8(ver_stdout.stdout).unwrap())
-}
+    let reader = BufReader::new(stdout);
 
-async fn make_bin() -> Result<String> {
-    let bin_path = check_bin_or_download().await?;
-    match check_bin_version(&bin_path) {
-        Ok(ver_output) => {
-            println!("{}", ver_output);
-            Ok(bin_path)
-        }
-        Err(e) => Err(e),
-    }
+    reader
+        .lines()
+        .filter_map(|line| line.ok())
+        .for_each(|line| println!("{}", line));
+
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::run;
 
-    #[tokio::test]
-    async fn test_bin() {
-        match make_bin().await {
-            Ok(p) => {
-                println!("bin path: {}", p);
-            }
-            Err(e) => println!("{:?}", e),
-        }
+    #[test]
+    fn capture_stdout() {
+        run();
     }
 }

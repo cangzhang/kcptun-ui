@@ -1,56 +1,50 @@
-use iced::{
-    button, executor, Align, Application, Button, Clipboard, Column, Command, Element, Text, Settings,
-};
+// slint::include_modules!();
+
+use slint::SharedString;
 
 pub mod cmd;
 
-fn main() -> iced::Result {
-    App::run(Settings::default())
+fn main() {
+    let ui = MainWindow::new();
+    // let win = ui.window();
+
+    let ui_handle = ui.as_weak();
+    ui.on_update_title(move || {
+        let ui = ui_handle.unwrap();
+
+        let mut text = SharedString::new();
+        text.push_str("updated");
+        ui.set_win_title(text);
+    });
+
+    ui.run();
 }
 
-#[derive(Debug, Clone)]
-enum Message {
-    OnClick,
-    Initialize,
-}
+slint::slint! {
+    import { Button, VerticalBox , CheckBox } from "std-widgets.slint";
 
-struct App {
-    list_button: button::State,
-}
+    MainWindow := Window {
+        property<string> win_title: "KCPTUN UI";
+        callback update-title();
 
-impl Application for App {
-    type Executor = executor::Default;
-    type Flags = ();
-    type Message = Message;
+        title: win_title;
+        default-font-family: "Microsoft Yahei UI";
+        preferred-width: 260px;
+        preferred-height: 100px;
 
-    fn new(_flags: ()) -> (App, Command<Message>) {
-        (
-            App {
-                list_button: button::State::new(),
-            },
-            Command::none(),
-        )
-    }
+        VerticalBox {
+            Text {
+                text: "Hello World";
+                font-weight: 500;
+                font-size: 20px;
+            }
 
-    fn title(&self) -> String {
-        String::from("kcptun ui")
-    }
-
-    fn update(&mut self, message: Message, _c: &mut Clipboard) -> Command<Message> {
-        match message {
-            Message::OnClick => Command::none(),
-            _ => Command::none(),
+            Button {
+                text: "Update Title";
+                clicked => {
+                    update-title();
+                }
+            }
         }
-    }
-
-    fn view(&mut self) -> Element<Message> {
-        let col = Column::new()
-            .max_width(600)
-            .spacing(10)
-            .padding(10)
-            .align_items(Align::Center)
-            .push(Button::new(&mut self.list_button, Text::new("Home")).on_press(Message::OnClick));
-
-        col.into()
     }
 }
