@@ -1,30 +1,26 @@
 use std::env;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
 use std::process::{Command, Stdio};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::mpsc::Sender;
 
-pub fn run() -> Result<(), Error> {
+pub fn run(tx: Sender<String>) -> Result<(), Error> {
     println!("current dir {:?}", env::current_dir());
 
-    let stdout = Command::new("./client_windows_amd64.exe")
-        .args(&["-c", "./config.json"])
+    let output = Command::new("./client_windows_amd64.exe")
+        .args(&["-c", "config.json"])
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()?
-        .stdout
+        .stderr
         .ok_or_else(|| Error::new(ErrorKind::Other, "Could not capture standard output."))?;
 
-    let reader = BufReader::new(stdout);
+    let reader = BufReader::new(output);
 
     reader
         .lines()
         .filter_map(|line| line.ok())
         .for_each(|line| {
-            let start = SystemTime::now();
-            let since_the_epoch = start
-                .duration_since(UNIX_EPOCH)
-                .expect("Time went backwards");
-
-            println!("{:?} {line}", since_the_epoch);
+            let _r = tx.send(line);
         });
 
     Ok(())
@@ -32,11 +28,16 @@ pub fn run() -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::run;
+    use std::sync::mpsc;
+
+    #[allow(unused_imports)]
+    use super::*;
 
     #[test]
     fn capture_stdout() {
-        let r = run();
+        let (tx, _rx) = mpsc::channel();
+        let r = crate::cmd::run(tx);
         println!("{:?}", r);
+        loop {}
     }
 }

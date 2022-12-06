@@ -1,6 +1,7 @@
-// slint::include_modules!();
-
-use std::thread;
+use std::{
+    sync::{mpsc, Arc, Mutex},
+    thread,
+};
 
 use slint::SharedString;
 
@@ -10,36 +11,55 @@ fn main() {
     let ui = MainWindow::new();
     // let win = ui.window();
 
-    let ui_handle = ui.as_weak();
-    ui.on_update_title(move || {
-        let ui = ui_handle.unwrap();
+    let logs = String::new();
+    let logs = Arc::new(Mutex::new(logs));
 
-        let mut text = SharedString::new();
-        text.push_str("updated");
-        ui.set_win_title(text);
+    let (tx, rx) = mpsc::channel();
+    ui.on_start_cmd(move || {
+        let tx = tx.clone();
+
+        thread::spawn(move || {
+            let _r = cmd::run(tx);
+        });
     });
 
-    ui.on_start_cmd(move || {
-        thread::spawn(|| {
-            cmd::run();
-        });
+    let ui_handle = ui.as_weak();
+    let handle = Arc::new(ui_handle);
+    thread::spawn(move || {
+        let ui = handle.lock().unwrap();
+
+        loop {
+            match rx.recv() {
+                Ok(line) => {
+                    println!("[rx] {line}");
+                    let mut logs = logs.lock().unwrap();
+                    logs.push_str(&line);
+
+                    let mut s = SharedString::new();
+                    s.push_str(&logs);
+                    ui.set_logs(s);
+                }
+                Err(_) => {}
+            }
+        }
     });
 
     ui.run();
 }
 
 slint::slint! {
-    import { Button, VerticalBox , CheckBox } from "std-widgets.slint";
+    import { Button, VerticalBox, ScrollView, TextEdit } from "std-widgets.slint";
 
     MainWindow := Window {
         property<string> win_title: "KCPTUN UI";
-        callback update-title();
+        property<string> logs: "";
+
         callback start-cmd();
 
         title: win_title;
         default-font-family: "Microsoft Yahei UI";
-        preferred-width: 260px;
-        preferred-height: 100px;
+        width: 400px;
+        preferred-height: 500px;
 
         VerticalBox {
             Text {
@@ -49,18 +69,19 @@ slint::slint! {
             }
 
             Button {
-                text: "Update Title";
-                clicked => {
-                    update-title();
-                }
-            }
-
-            Button {
                 text: "Start Kcptun";
                 background: green;
                 clicked => {
                     start-cmd();
                 }
+            }
+
+            TextEdit {
+                font-size: 10px;
+                width: parent.width - 20px;
+                height: parent.height * 50%;
+                read-only: true;
+                text <=> logs;
             }
         }
     }
