@@ -1,14 +1,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use std::{env, collections::HashMap};
+use std::{collections::HashMap, env};
 
 use imgui::{TabBar, TabItem};
 use rfd::FileDialog;
 
 mod support;
+mod tray;
 
 // https://github.com/imgui-rs/imgui-rs/issues/669#issuecomment-1257644053
 fn main() {
+    let sys_tray = tray::make_tray();
+
     let cur_dir = env::current_dir().unwrap();
 
     let mut checked = false;
@@ -16,6 +19,8 @@ fn main() {
 
     let system = support::init(file!());
     system.main_loop(move |_run, ui| {
+        let _ = sys_tray;
+
         ui.window("Main")
             .position([0.0, 0.0], imgui::Condition::Always)
             .size(ui.io().display_size, imgui::Condition::Always)

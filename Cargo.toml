@@ -2,13 +2,17 @@
 name = "kcptun-ui"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [profile.release]
-opt-level = "z"     # Optimize for size.
-lto = true          # Enable Link Time Optimization
-codegen-units = 1   # Reduce number of codegen units to increase optimizations.
-panic = "abort"     # Abort on panic
-strip = true        # Automatically strip symbols from the binary.
+opt-level = "z"   # Optimize for size.
+lto = true        # Enable Link Time Optimization
+codegen-units = 1 # Reduce number of codegen units to increase optimizations.
+panic = "abort"   # Abort on panic
+strip = true      # Automatically strip symbols from the binary.
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
 
 [dependencies]
 anyhow = "1.0"
@@ -18,3 +22,5 @@ glium = { version = "0.32.1", default-features = true }
 imgui-glium-renderer = "0.9.0"
 imgui-winit-support = "0.9.0"
 imgui = "0.9"
+image = "0.24"
+tray-item = { git = "https://github.com/fgimian/tray-item-rs.git", branch = "switch-to-windows-rs" }
