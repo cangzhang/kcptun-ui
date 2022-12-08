@@ -17,7 +17,7 @@ fn main() {
     let mut checked = false;
     let mut config_paths: HashMap<u8, String> = HashMap::new();
 
-    let system = support::init(file!());
+    let system = support::init();
     system.main_loop(move |_run, ui| {
         let _ = sys_tray;
 

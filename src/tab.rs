@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use imgui::{TabItem, Ui, StyleVar};
+use imgui::{StyleVar, TabItem, Ui};
 use rfd::FileDialog;
 
 pub fn make_config_tab(
