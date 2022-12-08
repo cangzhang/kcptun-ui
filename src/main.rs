@@ -1,15 +1,21 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use std::{env, collections::HashMap};
+
 use imgui::{TabBar, TabItem};
+use rfd::FileDialog;
 
 mod support;
 
+// https://github.com/imgui-rs/imgui-rs/issues/669#issuecomment-1257644053
 fn main() {
-    // https://github.com/imgui-rs/imgui-rs/issues/669#issuecomment-1257644053
+    let cur_dir = env::current_dir().unwrap();
+
     let mut checked = false;
+    let mut config_paths: HashMap<u8, String> = HashMap::new();
 
     let system = support::init(file!());
-    system.main_loop(move |run, ui| {
+    system.main_loop(move |_run, ui| {
         ui.window("Main")
             .position([0.0, 0.0], imgui::Condition::Always)
             .size(ui.io().display_size, imgui::Condition::Always)
@@ -21,11 +27,27 @@ fn main() {
                 ui.separator();
                 TabBar::new("All Tabs").build(ui, || {
                     TabItem::new("Tab A").build(ui, || {
-                        ui.text("Please specify your config for kcptun");
-                        ui.button("Select");
+                        ui.text("Please specify your config for kcptun A");
+                        if ui.button("Select") {
+                            let f = FileDialog::new()
+                                .add_filter("kcptun config", &["json"])
+                                .set_directory(&cur_dir)
+                                .pick_file();
+                            if let Some(f) = f {
+                                let f = f.to_string_lossy().into_owned();
+                                if let Some(_) = config_paths.get(&0) {
+                                    *config_paths.get_mut(&0).unwrap() = f;
+                                } else {
+                                    config_paths.entry(0).or_insert(f);
+                                }
+                            }
+                        }
+                        if let Some(el) = config_paths.get(&0) {
+                            ui.text(el);
+                        }
                     });
                     TabItem::new("Tab B").build(ui, || {
-                        ui.text("Please specify your config for kcptun");
+                        ui.text("Please specify your config for kcptun B");
                         ui.button("Select");
                     });
                 });
