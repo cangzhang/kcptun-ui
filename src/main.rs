@@ -2,10 +2,10 @@
 
 use std::{collections::HashMap, env};
 
-use imgui::{TabBar, TabItem};
-use rfd::FileDialog;
+use imgui::TabBar;
 
 mod support;
+mod tab;
 mod tray;
 
 // https://github.com/imgui-rs/imgui-rs/issues/669#issuecomment-1257644053
@@ -31,30 +31,14 @@ fn main() {
                 ui.checkbox("This is an option", &mut checked);
                 ui.separator();
                 TabBar::new("All Tabs").build(ui, || {
-                    TabItem::new("Tab A").build(ui, || {
-                        ui.text("Please specify your config for kcptun A");
-                        if ui.button("Select") {
-                            let f = FileDialog::new()
-                                .add_filter("kcptun config", &["json"])
-                                .set_directory(&cur_dir)
-                                .pick_file();
-                            if let Some(f) = f {
-                                let f = f.to_string_lossy().into_owned();
-                                if let Some(_) = config_paths.get(&0) {
-                                    *config_paths.get_mut(&0).unwrap() = f;
-                                } else {
-                                    config_paths.entry(0).or_insert(f);
-                                }
-                            }
-                        }
-                        if let Some(el) = config_paths.get(&0) {
-                            ui.text(el);
-                        }
-                    });
-                    TabItem::new("Tab B").build(ui, || {
-                        ui.text("Please specify your config for kcptun B");
-                        ui.button("Select");
-                    });
+                    if config_paths.is_empty() {
+                        tab::make_config_tab(ui, 0, &cur_dir, &mut config_paths);
+                        return;
+                    }
+
+                    for i in 0..config_paths.len() {
+                        tab::make_config_tab(ui, i as u8, &cur_dir, &mut config_paths);
+                    }
                 });
             });
     });
