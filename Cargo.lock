@@ -1121,6 +1121,9 @@ dependencies = [
  "imgui-glium-renderer",
  "imgui-winit-support",
  "rfd",
+ "serde",
+ "serde_derive",
+ "toml",
  "tray-item",
  "winres",
 ]
