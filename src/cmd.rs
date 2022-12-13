@@ -4,10 +4,10 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::Sender;
 
 pub fn run(tx: Option<Sender<(String, u32, u8)>>, idx: u8) -> Result<Child, Error> {
-    println!("[cmd] current dir {:?}", env::current_dir().unwrap());
+    println!("[cmd::run] current dir {:?}", env::current_dir().unwrap());
 
     let mut cmd = Command::new("./client_windows_amd64.exe")
-        .args(&["-c", "config.json"])
+        .args(["-c", "config.json"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
@@ -22,8 +22,6 @@ pub fn run(tx: Option<Sender<(String, u32, u8)>>, idx: u8) -> Result<Child, Erro
         .lines()
         .filter_map(|line| line.ok())
         .for_each(|line| {
-            println!("{line}");
-
             if let Some(tx) = tx.clone() {
                 let _r = tx.send((line, pid, idx));
             }

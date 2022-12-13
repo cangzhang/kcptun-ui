@@ -2,8 +2,7 @@
 
 use std::{
     env,
-    process::Child,
-    sync::{mpsc, Arc, Mutex},
+    sync::{Arc, Mutex},
     thread,
 };
 
@@ -14,6 +13,7 @@ mod settings;
 mod support;
 mod tab;
 mod tray;
+mod instance;
 
 // https://github.com/imgui-rs/imgui-rs/issues/669#issuecomment-1257644053
 fn main() {

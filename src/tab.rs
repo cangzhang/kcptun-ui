@@ -1,21 +1,15 @@
-use std::{
-    collections::HashMap,
-    path::PathBuf,
-    process::Child,
-    sync::{mpsc, Arc, Mutex},
-    thread,
-};
+use std::{collections::HashMap, path::PathBuf};
 
 use imgui::{StyleVar, TabItem, Ui};
 use rfd::FileDialog;
 
-use crate::{cmd, settings::Instance};
+use crate::instance;
 
 pub fn make_config_tab(
     ui: &Ui,
     tab_index: u8,
     cur_dir: &PathBuf,
-    config_map: &mut HashMap<u8, Instance>,
+    config_map: &mut HashMap<u8, instance::Instance>,
 ) {
     let order = tab_index + 1;
     let tab_name = format!("Config #{}", order);
@@ -33,10 +27,12 @@ pub fn make_config_tab(
                 .pick_file();
             if let Some(f) = f {
                 let f = f.to_string_lossy().into_owned();
-                if let Some(_) = config_map.get(&tab_index) {
-                    *config_map.get_mut(&tab_index).unwrap() = Instance::new(&f);
+                if config_map.get(&tab_index).is_some() {
+                    *config_map.get_mut(&tab_index).unwrap() = instance::Instance::new(&f);
                 } else {
-                    config_map.entry(tab_index).or_insert(Instance::new(&f));
+                    config_map
+                        .entry(tab_index)
+                        .or_insert(instance::Instance::new(&f));
                 }
             }
         }
@@ -61,11 +57,12 @@ pub fn make_config_tab(
                     if ui.button("Stop") {
                         ins.kill();
                     }
-                } else {
-                    if ui.button("Run") {
-                        ins.run();
-                    }
+                } else if ui.button("Run") {
+                    ins.run();
                 }
+
+                let status = if *running { "Running" } else { "Stopped" };
+                ui.text(format!("Current Status: {status}"));
             }
         }
 
