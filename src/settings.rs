@@ -14,12 +14,12 @@ pub struct ConfigFile {
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Config {
+pub struct Instance {
     pub path: String,
     pub running: bool,
 }
 
-impl Config {
+impl Instance {
     pub fn new(path: &String) -> Self {
         Self {
             path: path.to_owned(),
@@ -28,7 +28,12 @@ impl Config {
     }
 }
 
-pub fn load_config() -> (HashMap<u8, Config>, bool) {
+pub struct State {
+    pub configs: HashMap<u8, Instance>,
+    pub auto_launch_kcptun: bool,
+}
+
+pub fn load_settings() -> State {
     let config_file_name = "./.config.toml";
     if !Path::new(config_file_name).exists() {
         if let Ok(_) = File::create(config_file_name) {
@@ -36,7 +41,7 @@ pub fn load_config() -> (HashMap<u8, Config>, bool) {
         }
     }
 
-    let mut configs: HashMap<u8, Config> = HashMap::new();
+    let mut configs: HashMap<u8, Instance> = HashMap::new();
     let mut auto_launch_kcptun = false;
 
     if let Ok(content) = fs::read_to_string(config_file_name) {
@@ -46,7 +51,7 @@ pub fn load_config() -> (HashMap<u8, Config>, bool) {
                 auto_launch_kcptun = data.auto_launch_kcptun;
 
                 for (idx, c) in data.file_paths.iter().enumerate() {
-                    configs.insert(idx as u8, Config::new(c));
+                    configs.insert(idx as u8, Instance::new(c));
                 }
             }
             Err(_) => {}
@@ -55,5 +60,8 @@ pub fn load_config() -> (HashMap<u8, Config>, bool) {
         println!("[config] load failed");
     }
 
-    (configs, auto_launch_kcptun)
+    State {
+        configs,
+        auto_launch_kcptun,
+    }
 }

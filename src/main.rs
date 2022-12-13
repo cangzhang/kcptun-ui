@@ -9,7 +9,7 @@ use std::{
 
 use imgui::TabBar;
 
-mod config;
+mod settings;
 mod support;
 mod tab;
 mod tray;
@@ -19,26 +19,25 @@ fn main() {
     let sys_tray = tray::make_tray();
 
     let cur_dir = env::current_dir().unwrap();
-    let (config_paths, mut auto_launch_kcptun) = config::load_config();
+    let app_config = settings::load_settings();
+    let app_config = Arc::new(Mutex::new(app_config));
 
-    let config_map = Arc::new(Mutex::new(config_paths));
-
-    let config_cloned = config_map.clone();
+    let config_cloned = app_config.clone();
     thread::spawn(move || loop {
         thread::sleep(Duration::from_secs(10));
-        let config_map = config_cloned.lock().unwrap();
-        println!("[current] {:?}", config_map);
+        let config_cloned = config_cloned.lock().unwrap();
 
-        let mut app_config = config::ConfigFile {
+        let mut app_config = settings::ConfigFile {
             file_paths: vec![],
-            auto_launch_kcptun,
+            auto_launch_kcptun: config_cloned.auto_launch_kcptun,
         };
-        for i in 0..config_map.len() {
+        for i in 0..config_cloned.configs.len() {
             let idx = i as u8;
-            let c = config_map.get(&idx).unwrap();
+            let c = config_cloned.configs.get(&idx).unwrap();
             app_config.file_paths.push(c.path.to_owned());
         }
 
+        println!("[current app config] {:?}", app_config);
         let data = toml::to_string_pretty(&app_config).unwrap();
         if let Ok(_) = fs::write("./.config.toml", data) {
             println!("[config] saved");
@@ -49,7 +48,7 @@ fn main() {
     system.main_loop(move |_run, ui| {
         let _ = sys_tray;
 
-        let mut config_map = config_map.lock().unwrap();
+        let mut app_config = app_config.lock().unwrap();
 
         ui.window("Main")
             .position([0.0, 0.0], imgui::Condition::Always)
@@ -59,17 +58,17 @@ fn main() {
                 ui.text("KCPTUN UI");
                 ui.spacing();
 
-                ui.checkbox("Launch kcptun when starting app", &mut auto_launch_kcptun);
+                ui.checkbox("Launch kcptun when starting app", &mut app_config.auto_launch_kcptun);
                 ui.separator();
 
                 TabBar::new("All Tabs").build(ui, || {
-                    if config_map.is_empty() {
-                        tab::make_config_tab(ui, 0, &cur_dir, &mut config_map);
+                    if app_config.configs.is_empty() {
+                        tab::make_config_tab(ui, 0, &cur_dir, &mut app_config.configs);
                         return;
                     }
 
-                    for i in 0..config_map.len() {
-                        tab::make_config_tab(ui, i as u8, &cur_dir, &mut config_map);
+                    for i in 0..app_config.configs.len() {
+                        tab::make_config_tab(ui, i as u8, &cur_dir, &mut app_config.configs);
                     }
                 });
             });

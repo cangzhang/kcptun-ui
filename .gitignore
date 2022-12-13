@@ -2,3 +2,4 @@
 *.exe
 config.json
 .config.toml
+.fleet/
