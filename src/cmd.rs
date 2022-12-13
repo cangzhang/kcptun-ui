@@ -1,29 +1,35 @@
 use std::env;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::Sender;
 
-pub fn run(tx: Sender<String>) -> Result<(), Error> {
-    println!("current dir {:?}", env::current_dir());
+pub fn run(tx: Option<Sender<(String, u32, u8)>>, idx: u8) -> Result<Child, Error> {
+    println!("[cmd] current dir {:?}", env::current_dir().unwrap());
 
-    let output = Command::new("./client_windows_amd64.exe")
+    let mut cmd = Command::new("./client_windows_amd64.exe")
         .args(&["-c", "config.json"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .spawn()?
+        .spawn()?;
+    let pid = cmd.id();
+    let output = cmd
         .stderr
+        .take()
         .ok_or_else(|| Error::new(ErrorKind::Other, "Could not capture standard output."))?;
 
     let reader = BufReader::new(output);
-
     reader
         .lines()
         .filter_map(|line| line.ok())
         .for_each(|line| {
-            let _r = tx.send(line);
+            println!("{line}");
+
+            if let Some(tx) = tx.clone() {
+                let _r = tx.send((line, pid, idx));
+            }
         });
 
-    Ok(())
+    Ok(cmd)
 }
 
 #[cfg(test)]
@@ -36,7 +42,7 @@ mod tests {
     #[test]
     fn capture_stdout() {
         let (tx, _rx) = mpsc::channel();
-        let r = crate::cmd::run(tx);
+        let r = crate::cmd::run(Some(tx), 0);
         println!("{:?}", r);
         loop {}
     }

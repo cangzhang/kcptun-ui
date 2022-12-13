@@ -1,9 +1,15 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    process::Child,
+    sync::{mpsc, Arc, Mutex},
+    thread,
+};
 
 use imgui::{StyleVar, TabItem, Ui};
 use rfd::FileDialog;
 
-use crate::settings::Instance;
+use crate::{cmd, settings::Instance};
 
 pub fn make_config_tab(
     ui: &Ui,
@@ -42,15 +48,27 @@ pub fn make_config_tab(
         }
         style.pop();
 
-        // ui.new_line();
         if has_config {
             let remove_btn_text = format!("Remove Config #{order}");
             if ui.button(&remove_btn_text) {
                 config_map.remove_entry(&tab_index);
             }
+
+            if let Some(ins) = config_map.get_mut(&tab_index) {
+                let running = ins.running.clone();
+                let running = running.lock().unwrap();
+                if *running {
+                    if ui.button("Stop") {
+                        ins.kill();
+                    }
+                } else {
+                    if ui.button("Run") {
+                        ins.run();
+                    }
+                }
+            }
         }
 
-        ui.spacing();
         ui.separator();
     });
 }
