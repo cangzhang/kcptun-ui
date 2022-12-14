@@ -23,6 +23,22 @@ fn main() {
     let app_conf = settings::load_settings();
     let app_conf = Arc::new(Mutex::new(app_conf));
 
+    let st = app_conf.clone();
+    thread::spawn(move || {
+        let mut st = st.lock().unwrap();
+        if !st.auto_launch_kcptun {
+            return;
+        }
+
+        for i in 0..st.configs.len() {
+            let i = i as u8;
+            let ins = st.configs.get_mut(&i).unwrap();
+            if !ins.path.is_empty() {
+                ins.run();
+            }
+        }
+    });
+
     let system = support::init();
     system.main_loop(move |_run, ui| {
         let _ = sys_tray;
