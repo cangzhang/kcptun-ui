@@ -30,7 +30,6 @@ pub fn run(tx: Option<Sender<(String, u32)>>) -> Result<Child, Error> {
             .filter_map(|line| line.ok())
             .for_each(|line| {
                 if let Some(tx) = &tx {
-                    println!("[sender] {line}");
                     let _r = tx.send((line, pid));
                 }
             });

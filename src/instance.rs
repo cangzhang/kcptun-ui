@@ -1,8 +1,7 @@
 use std::{
     process::Child,
-    sync::{mpsc, Arc, Mutex},
+    sync::{mpsc, Arc, Mutex, RwLock},
     thread,
-    time::Duration,
 };
 
 use crate::cmd;
@@ -11,7 +10,7 @@ use crate::cmd;
 pub struct Instance {
     pub path: String,
     pub running: Arc<Mutex<bool>>,
-    pub log: Arc<Mutex<String>>,
+    pub log: Arc<RwLock<String>>,
     pub pid: u32,
     pub cmd: Arc<Mutex<Option<Child>>>,
 }
@@ -28,7 +27,6 @@ impl Instance {
         let (tx, rx) = mpsc::channel();
         let cmd = self.cmd.clone();
         let running = self.running.clone();
-        let log = self.log.clone();
 
         thread::spawn(move || {
             let mut running = running.lock().unwrap();
@@ -49,16 +47,16 @@ impl Instance {
             }
         });
 
+        let log = self.log.clone();
         thread::spawn(move || {
-            let mut log = log.lock().unwrap();
-
-//            loop {
-//                for r in rx.recv() {
-//                    println!("[receiver] {:?}", r);
-//                }
-//
-//                thread::sleep(Duration::from_secs(1));
-//            }
+            loop {
+                let mut write_guard = log.write().unwrap();
+                if let Ok((log_line, _pid)) = rx.recv() {
+                    println!("[receiver] {:?}", log_line);
+                    write_guard.push_str(&log_line);
+                }
+                drop(write_guard);
+            }
         });
     }
 

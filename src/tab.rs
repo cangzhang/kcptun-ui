@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, ops::Deref, path::PathBuf};
 
 use imgui::{StyleVar, TabItem, Ui};
 use rfd::FileDialog;
@@ -64,8 +64,9 @@ pub fn make_config_tab(
                 let status = if *running { "Running" } else { "Stopped" };
                 ui.text(format!("Current Status: {status}"));
 
-                let logs = ins.log.lock().unwrap();
-//                println!("{:?}", *logs);
+                // let read_guard = ins.log.read().unwrap();
+                // println!("{:?}", *read_guard);
+                // drop(read_guard);
             }
         }
 
