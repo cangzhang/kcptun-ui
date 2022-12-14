@@ -1,9 +1,9 @@
-use std::env;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::Sender;
+use std::{env, thread};
 
-pub fn run(tx: Option<Sender<(String, u32, u8)>>, idx: u8) -> Result<Child, Error> {
+pub fn run(tx: Option<Sender<(String, u32)>>) -> Result<Child, Error> {
     println!("[cmd::run] current dir {:?}", env::current_dir().unwrap());
 
     let bin_path = match env::consts::OS {
@@ -24,14 +24,17 @@ pub fn run(tx: Option<Sender<(String, u32, u8)>>, idx: u8) -> Result<Child, Erro
         .ok_or_else(|| Error::new(ErrorKind::Other, "Could not capture standard output."))?;
 
     let reader = BufReader::new(output);
-    reader
-        .lines()
-        .filter_map(|line| line.ok())
-        .for_each(|line| {
-            if let Some(tx) = tx.clone() {
-                let _r = tx.send((line, pid, idx));
-            }
-        });
+    thread::spawn(move || {
+        reader
+            .lines()
+            .filter_map(|line| line.ok())
+            .for_each(|line| {
+                if let Some(tx) = &tx {
+                    println!("[sender] {line}");
+                    let _r = tx.send((line, pid));
+                }
+            });
+    });
 
     Ok(cmd)
 }
@@ -45,9 +48,12 @@ mod tests {
 
     #[test]
     fn capture_stdout() {
-        let (tx, _rx) = mpsc::channel();
-        let r = crate::cmd::run(Some(tx), 0);
-        println!("{:?}", r);
-        loop {}
+        let (tx, rx) = mpsc::channel();
+        let r = crate::cmd::run(Some(tx));
+        println!("[run result] {:?}", r);
+        loop {
+            let r = rx.recv();
+            println!("[received log] {:?}", r);
+        }
     }
 }

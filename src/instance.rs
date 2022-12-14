@@ -2,6 +2,7 @@ use std::{
     process::Child,
     sync::{mpsc, Arc, Mutex},
     thread,
+    time::Duration,
 };
 
 use crate::cmd;
@@ -26,23 +27,38 @@ impl Instance {
     pub fn run(&mut self) {
         let (tx, rx) = mpsc::channel();
         let cmd = self.cmd.clone();
+        let running = self.running.clone();
+        let log = self.log.clone();
 
         thread::spawn(move || {
-            if let Ok(child) = cmd::run(Some(tx), 0) {
-                let mut cmd = cmd.lock().unwrap();
-                *cmd = Some(child);
+            let mut running = running.lock().unwrap();
+            if *running {
+                println!("[instance::run] already running");
+                return;
+            }
+
+            match cmd::run(Some(tx)) {
+                Ok(child) => {
+                    let mut cmd = cmd.lock().unwrap();
+                    *cmd = Some(child);
+                    *running = true;
+                }
+                Err(e) => {
+                    println!("[run] error {:?}", e);
+                }
             }
         });
 
-        let log = self.log.clone();
-        let running = self.running.clone();
-        thread::spawn(move || loop {
+        thread::spawn(move || {
             let mut log = log.lock().unwrap();
-            for (log_line, pid, _idx) in rx.recv() {
-                // println!("{log_line}");
-                log.push_str(&log_line);
-                *running.lock().unwrap() = pid > 0;
-            }
+
+//            loop {
+//                for r in rx.recv() {
+//                    println!("[receiver] {:?}", r);
+//                }
+//
+//                thread::sleep(Duration::from_secs(1));
+//            }
         });
     }
 
@@ -53,7 +69,7 @@ impl Instance {
             let mut cmd = cmd.lock().unwrap();
             if let Some(c) = &mut *cmd {
                 let r = c.kill();
-                println!("{:?}", r);
+                println!("[instance::kill] {:?}", r);
             }
             *cmd = None;
 

@@ -9,11 +9,11 @@ use std::{
 use imgui::TabBar;
 
 mod cmd;
+mod instance;
 mod settings;
 mod support;
 mod tab;
 mod tray;
-mod instance;
 
 // https://github.com/imgui-rs/imgui-rs/issues/669#issuecomment-1257644053
 fn main() {
@@ -23,16 +23,16 @@ fn main() {
     let app_conf = settings::load_settings();
     let app_conf = Arc::new(Mutex::new(app_conf));
 
-    let st = app_conf.clone();
+    let conf = app_conf.clone();
     thread::spawn(move || {
-        let mut st = st.lock().unwrap();
-        if !st.auto_launch_kcptun {
+        let mut conf = conf.lock().unwrap();
+        if !conf.auto_launch_kcptun {
             return;
         }
 
-        for i in 0..st.configs.len() {
+        for i in 0..conf.configs.len() {
             let i = i as u8;
-            let ins = st.configs.get_mut(&i).unwrap();
+            let ins = conf.configs.get_mut(&i).unwrap();
             if !ins.path.is_empty() {
                 ins.run();
             }

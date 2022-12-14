@@ -63,6 +63,9 @@ pub fn make_config_tab(
 
                 let status = if *running { "Running" } else { "Stopped" };
                 ui.text(format!("Current Status: {status}"));
+
+                let logs = ins.log.lock().unwrap();
+//                println!("{:?}", *logs);
             }
         }
 

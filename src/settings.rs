@@ -26,7 +26,7 @@ pub struct State {
 pub fn load_settings() -> State {
     let config_file_name = "./.config.toml";
     if !Path::new(config_file_name).exists() {
-        if let Ok(_) = fs::File::create(config_file_name) {
+        if fs::File::create(config_file_name).is_ok() {
             println!("[settings] created new config");
         }
     }
