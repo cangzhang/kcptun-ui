@@ -6,7 +6,13 @@ use std::sync::mpsc::Sender;
 pub fn run(tx: Option<Sender<(String, u32, u8)>>, idx: u8) -> Result<Child, Error> {
     println!("[cmd::run] current dir {:?}", env::current_dir().unwrap());
 
-    let mut cmd = Command::new("./client_windows_amd64.exe")
+    let bin_path = match env::consts::OS {
+        "windows" => "./client_windows_amd64.exe",
+        "macos" => "./client_darwin_amd64",
+        _ => "./client_linux_amd64",
+    };
+
+    let mut cmd = Command::new(&bin_path)
         .args(["-c", "config.json"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

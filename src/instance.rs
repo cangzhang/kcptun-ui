@@ -25,20 +25,12 @@ impl Instance {
 
     pub fn run(&mut self) {
         let (tx, rx) = mpsc::channel();
-        let (tx2, rx2) = mpsc::channel();
+        let cmd = self.cmd.clone();
+
         thread::spawn(move || {
             if let Ok(child) = cmd::run(Some(tx), 0) {
-                let _ = tx2.send(child);
-            }
-        });
-
-        let cmd = self.cmd.clone();
-        thread::spawn(move || {
-            let mut cmd = cmd.lock().unwrap();
-            loop {
-                for c in rx2.recv() {
-                    *cmd = Some(c);
-                }
+                let mut cmd = cmd.lock().unwrap();
+                *cmd = Some(child);
             }
         });
 
@@ -58,7 +50,6 @@ impl Instance {
         let cmd = self.cmd.clone();
         let running = self.running.clone();
         thread::spawn(move || {
-            println!("spawn");
             let mut cmd = cmd.lock().unwrap();
             if let Some(c) = &mut *cmd {
                 let r = c.kill();

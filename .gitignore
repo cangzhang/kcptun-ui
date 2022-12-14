@@ -3,4 +3,4 @@
 config.json
 .config.toml
 .fleet/
-client_darwin_amd64
+client_*_amd64
