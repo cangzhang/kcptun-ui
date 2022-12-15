@@ -36,7 +36,7 @@ pub fn make_config_tab(
                     if let Some(f) = f {
                         let f = f.to_string_lossy().into_owned();
                         ins.kill();
-                        ins.path = f.to_owned();
+                        ins.path = f;
                     }
                 }
 

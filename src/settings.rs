@@ -10,7 +10,7 @@ use std::{
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 
-use crate::{settings, instance::{Instance}};
+use crate::{instance::Instance, settings};
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConfigFile {
@@ -36,21 +36,18 @@ pub fn load_settings() -> State {
 
     if let Ok(content) = fs::read_to_string(config_file_name) {
         println!("[settings] loaded");
-        match toml::from_str::<ConfigFile>(&content) {
-            Ok(data) => {
-                auto_launch_kcptun = data.auto_launch_kcptun;
+        if let Ok(data) = toml::from_str::<ConfigFile>(&content) {
+            auto_launch_kcptun = data.auto_launch_kcptun;
 
-                for (idx, c) in data.file_paths.iter().enumerate() {
-                    let mut ins = Instance::new();
-                    ins.update_config(c);
-                    configs.insert(idx as u8, ins);
-                }
-
-                if data.file_paths.is_empty() {
-                    configs.insert(0, Instance::new());
-                }
+            for (idx, c) in data.file_paths.iter().enumerate() {
+                let mut ins = Instance::new();
+                ins.update_config(c);
+                configs.insert(idx as u8, ins);
             }
-            Err(_) => {}
+
+            if data.file_paths.is_empty() {
+                configs.insert(0, Instance::new());
+            }
         }
     } else {
         println!("[settings] load failed");

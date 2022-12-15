@@ -12,7 +12,7 @@ pub fn run(tx: Option<Sender<(String, u32)>>) -> Result<Child, Error> {
         _ => "./client_linux_amd64",
     };
 
-    let mut cmd = Command::new(&bin_path)
+    let mut cmd = Command::new(bin_path)
         .args(["-c", "config.json"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

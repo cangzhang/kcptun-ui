@@ -24,7 +24,7 @@ impl Instance {
             ..Default::default()
         }
     }
-    
+
     pub fn update_config(&mut self, path: &String) {
         if path.eq(&self.path) {
             return;
@@ -33,7 +33,7 @@ impl Instance {
         self.path = path.to_owned();
         self.uid = Uuid::new_v4();
     }
-    
+
     pub fn run(&mut self) {
         let (tx, rx) = mpsc::channel();
         let cmd = self.cmd.clone();
@@ -59,15 +59,13 @@ impl Instance {
         });
 
         let logs = self.logs.clone();
-        thread::spawn(move || {
-            loop {
-                let mut write_guard = logs.write().unwrap();
-                if let Ok((log_line, _pid)) = rx.try_recv() {
-                    println!("[receiver] {:?}", log_line);
-                    write_guard.push(log_line);
-                }
-                drop(write_guard);
+        thread::spawn(move || loop {
+            let mut write_guard = logs.write().unwrap();
+            if let Ok((log_line, _pid)) = rx.try_recv() {
+                println!("[receiver] {:?}", log_line);
+                write_guard.push(log_line);
             }
+            drop(write_guard);
         });
     }
 
