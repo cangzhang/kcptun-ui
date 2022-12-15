@@ -10,7 +10,7 @@ use std::{
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 
-use crate::{settings, instance};
+use crate::{settings, instance::{Instance}};
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConfigFile {
@@ -19,7 +19,7 @@ pub struct ConfigFile {
 }
 
 pub struct State {
-    pub configs: HashMap<u8, instance::Instance>,
+    pub configs: HashMap<u8, Instance>,
     pub auto_launch_kcptun: bool,
 }
 
@@ -31,7 +31,7 @@ pub fn load_settings() -> State {
         }
     }
 
-    let mut configs: HashMap<u8, instance::Instance> = HashMap::new();
+    let mut configs: HashMap<u8, Instance> = HashMap::new();
     let mut auto_launch_kcptun = false;
 
     if let Ok(content) = fs::read_to_string(config_file_name) {
@@ -41,7 +41,13 @@ pub fn load_settings() -> State {
                 auto_launch_kcptun = data.auto_launch_kcptun;
 
                 for (idx, c) in data.file_paths.iter().enumerate() {
-                    configs.insert(idx as u8, instance::Instance::new(c));
+                    let mut ins = Instance::new();
+                    ins.update_config(c);
+                    configs.insert(idx as u8, ins);
+                }
+
+                if data.file_paths.is_empty() {
+                    configs.insert(0, Instance::new());
                 }
             }
             Err(_) => {}
