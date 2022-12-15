@@ -4,4 +4,4 @@ GUI for kcptun.
 
 ## Icon
 
-https://www.flaticon.com/free-icon/box_2066609
+https://icons8.com/icon/65351/cardboard-box
