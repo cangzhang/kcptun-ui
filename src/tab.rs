@@ -28,7 +28,12 @@ pub fn make_config_tab(
 
                 ui.text(&status_text);
 
-                if ui.button("Select") {
+                let select_text = if ins.path.is_empty() {
+                    "Select"
+                } else {
+                    "Re-Select"
+                };
+                if ui.button(select_text) {
                     let f = FileDialog::new()
                         .add_filter("kcptun config", &["json"])
                         .set_directory(cur_dir)
@@ -62,6 +67,7 @@ pub fn make_config_tab(
 
                 ui.spacing();
                 ui.separator();
+
                 let logs = ins.logs.read().unwrap();
                 ui.child_window(ins.uid.to_string())
                     .flags(WindowFlags::HORIZONTAL_SCROLLBAR)
