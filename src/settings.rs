@@ -9,6 +9,7 @@ use std::{
 
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
+use uuid::Uuid;
 
 use crate::{instance::Instance, settings};
 
@@ -23,7 +24,7 @@ pub struct State {
     pub auto_launch_kcptun: bool,
 }
 
-pub fn load_settings() -> State {
+pub fn load_settings() -> (State, HashMap<Uuid, bool>) {
     let config_file_name = "./.config.toml";
     if !Path::new(config_file_name).exists() {
         if fs::File::create(config_file_name).is_ok() {
@@ -34,6 +35,8 @@ pub fn load_settings() -> State {
     let mut configs: HashMap<u8, Instance> = HashMap::new();
     let mut auto_launch_kcptun = false;
 
+    let mut tab_status = HashMap::new();
+
     if let Ok(content) = fs::read_to_string(config_file_name) {
         println!("[settings] loaded");
         if let Ok(data) = toml::from_str::<ConfigFile>(&content) {
@@ -41,8 +44,11 @@ pub fn load_settings() -> State {
 
             for (idx, c) in data.file_paths.iter().enumerate() {
                 let mut ins = Instance::new();
+                let uid = ins.uid.clone();
+
                 ins.update_config(c);
                 configs.insert(idx as u8, ins);
+                tab_status.insert(uid, true);
             }
 
             if data.file_paths.is_empty() {
@@ -53,10 +59,13 @@ pub fn load_settings() -> State {
         println!("[settings] load failed");
     }
 
-    State {
-        configs,
-        auto_launch_kcptun,
-    }
+    (
+        State {
+            configs,
+            auto_launch_kcptun,
+        },
+        tab_status,
+    )
 }
 
 pub fn save(conf: &State) -> bool {
@@ -66,8 +75,9 @@ pub fn save(conf: &State) -> bool {
     };
     for i in 0..conf.configs.len() {
         let idx = i as u8;
-        let c = conf.configs.get(&idx).unwrap();
-        app_config.file_paths.push(c.path.to_owned());
+        if let Some(c) = conf.configs.get(&idx) {
+            app_config.file_paths.push(c.path.to_owned());
+        }
     }
 
     println!("[current app config] {:?}", app_config);

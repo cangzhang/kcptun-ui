@@ -7,6 +7,7 @@ use std::{
 };
 
 use imgui::TabBar;
+use instance::Instance;
 
 mod cmd;
 mod instance;
@@ -20,8 +21,10 @@ fn main() {
     let sys_tray = tray::make_tray();
 
     let cur_dir = env::current_dir().unwrap();
-    let app_conf = settings::load_settings();
+    let (app_conf, tab_status) = settings::load_settings();
     let app_conf = Arc::new(Mutex::new(app_conf));
+
+    let tab_status = Arc::new(Mutex::new(tab_status));
 
     let conf = app_conf.clone();
     thread::spawn(move || {
@@ -46,6 +49,10 @@ fn main() {
         let conf_to_save = app_conf.clone();
         let mut state = app_conf.lock().unwrap();
 
+        let tab_status_to_save = tab_status.clone();
+        let tab_status = tab_status.clone();
+        let mut tab_status = tab_status.lock().unwrap();
+
         ui.window("Main")
             .position([0.0, 0.0], imgui::Condition::Always)
             .size(ui.io().display_size, imgui::Condition::Always)
@@ -60,20 +67,36 @@ fn main() {
                 );
                 if ui.button("Save") {
                     thread::spawn(move || {
-                        let conf = conf_to_save.lock().unwrap();
+                        let mut conf = conf_to_save.lock().unwrap();
+                        let tab_status = tab_status_to_save.lock().unwrap();
+
+                        conf.configs.retain(|_k, v| tab_status[&v.uid]);
+                        // for (idx, c) in conf.configs.iter() {
+                        //         conf.configs.remove_entry(idx);
+                        //     }
+                        // }
                         settings::save(&conf);
                     });
                 }
+
+                ui.same_line();
+
+                if ui.button("Add Config") {
+                    let len = state.configs.len();
+                    state.configs.insert(len as u8, Instance::new());
+                }
+
                 ui.separator();
 
-                TabBar::new("All Tabs").build(ui, || {
-                    if state.configs.is_empty() {
-                        tab::make_config_tab(ui, 0, &cur_dir, &mut state.configs);
-                        return;
-                    }
-
+                TabBar::new("AllTabs").build(ui, || {
                     for i in 0..state.configs.len() {
-                        tab::make_config_tab(ui, i as u8, &cur_dir, &mut state.configs);
+                        tab::make_config_tab(
+                            ui,
+                            i as u8,
+                            &cur_dir,
+                            &mut state.configs,
+                            &mut tab_status,
+                        );
                     }
                 });
             });

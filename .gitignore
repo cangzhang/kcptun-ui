@@ -1,6 +1,6 @@
 /target
 *.exe
-config.json
+config*.json
 .config.toml
 .fleet/
 client_*_amd64

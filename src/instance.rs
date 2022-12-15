@@ -31,13 +31,14 @@ impl Instance {
         }
 
         self.path = path.to_owned();
-        self.uid = Uuid::new_v4();
+        // self.uid = Uuid::new_v4();
     }
 
     pub fn run(&mut self) {
         let (tx, rx) = mpsc::channel();
         let cmd = self.cmd.clone();
         let running = self.running.clone();
+        let path = self.path.to_owned();
 
         thread::spawn(move || {
             let mut running = running.lock().unwrap();
@@ -46,7 +47,7 @@ impl Instance {
                 return;
             }
 
-            match cmd::run(Some(tx)) {
+            match cmd::run(&path, Some(tx)) {
                 Ok(child) => {
                     let mut cmd = cmd.lock().unwrap();
                     *cmd = Some(child);

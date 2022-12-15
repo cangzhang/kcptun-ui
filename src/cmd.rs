@@ -3,7 +3,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::Sender;
 use std::{env, thread};
 
-pub fn run(tx: Option<Sender<(String, u32)>>) -> Result<Child, Error> {
+pub fn run(conf_path: &String, tx: Option<Sender<(String, u32)>>) -> Result<Child, Error> {
     println!("[cmd::run] current dir {:?}", env::current_dir().unwrap());
 
     let bin_path = match env::consts::OS {
@@ -13,7 +13,7 @@ pub fn run(tx: Option<Sender<(String, u32)>>) -> Result<Child, Error> {
     };
 
     let mut cmd = Command::new(bin_path)
-        .args(["-c", "config.json"])
+        .args(["-c", conf_path])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
@@ -48,7 +48,8 @@ mod tests {
     #[test]
     fn capture_stdout() {
         let (tx, rx) = mpsc::channel();
-        let r = crate::cmd::run(Some(tx));
+        let conf = String::from("./config.json");
+        let r = crate::cmd::run(&conf, Some(tx));
         println!("[run result] {:?}", r);
         loop {
             let r = rx.recv();
