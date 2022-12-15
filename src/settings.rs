@@ -43,12 +43,14 @@ pub fn load_settings() -> (State, HashMap<Uuid, bool>) {
             auto_launch_kcptun = data.auto_launch_kcptun;
 
             for (idx, c) in data.file_paths.iter().enumerate() {
-                let mut ins = Instance::new();
-                let uid = ins.uid.clone();
+                if !c.is_empty() {
+                    let mut ins = Instance::new();
+                    let uid = ins.uid.clone();
 
-                ins.update_config(c);
-                configs.insert(idx as u8, ins);
-                tab_status.insert(uid, true);
+                    ins.update_config(c);
+                    configs.insert(idx as u8, ins);
+                    tab_status.insert(uid, true);
+                }
             }
 
             if data.file_paths.is_empty() {
@@ -76,7 +78,9 @@ pub fn save(conf: &State) -> bool {
     for i in 0..conf.configs.len() {
         let idx = i as u8;
         if let Some(c) = conf.configs.get(&idx) {
-            app_config.file_paths.push(c.path.to_owned());
+            if !c.path.is_empty() {
+                app_config.file_paths.push(c.path.to_owned());
+            }
         }
     }
 
