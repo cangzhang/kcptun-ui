@@ -51,8 +51,9 @@ impl Instance {
         thread::spawn(move || {
             loop {
                 let mut write_guard = log.write().unwrap();
-                if let Ok((log_line, _pid)) = rx.recv() {
+                if let Ok((log_line, _pid)) = rx.try_recv() {
                     println!("[receiver] {:?}", log_line);
+                    write_guard.push_str("\n");
                     write_guard.push_str(&log_line);
                 }
                 drop(write_guard);
@@ -63,6 +64,8 @@ impl Instance {
     pub fn kill(&mut self) {
         let cmd = self.cmd.clone();
         let running = self.running.clone();
+        let log = self.log.clone();
+
         thread::spawn(move || {
             let mut cmd = cmd.lock().unwrap();
             if let Some(c) = &mut *cmd {
@@ -73,6 +76,8 @@ impl Instance {
 
             let mut running = running.lock().unwrap();
             *running = false;
+            let mut log = log.write().unwrap();
+            *log = String::new();
         });
     }
 }
