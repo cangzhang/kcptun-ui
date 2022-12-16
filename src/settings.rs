@@ -1,11 +1,4 @@
-use std::{
-    collections::HashMap,
-    fs,
-    path::Path,
-    sync::{Arc, Mutex},
-    thread,
-    time::Duration,
-};
+use std::{collections::HashMap, fs, path::Path};
 
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
@@ -26,10 +19,8 @@ pub struct State {
 
 pub fn load_settings() -> (State, HashMap<Uuid, bool>) {
     let config_file_name = "./.config.toml";
-    if !Path::new(config_file_name).exists() {
-        if fs::File::create(config_file_name).is_ok() {
-            println!("[settings] created new config");
-        }
+    if !Path::new(config_file_name).exists() && fs::File::create(config_file_name).is_ok() {
+        println!("[settings] created new config");
     }
 
     let mut configs: HashMap<u8, Instance> = HashMap::new();
@@ -45,7 +36,7 @@ pub fn load_settings() -> (State, HashMap<Uuid, bool>) {
             for (idx, c) in data.file_paths.iter().enumerate() {
                 if !c.is_empty() {
                     let mut ins = Instance::new();
-                    let uid = ins.uid.clone();
+                    let uid = ins.uid;
 
                     ins.update_config(c);
                     configs.insert(idx as u8, ins);

@@ -66,7 +66,7 @@ fn main() {
                 ) {
                     save_conf();
                 }
-                
+
                 // ui.spacing();
                 // ui.same_line();
 
