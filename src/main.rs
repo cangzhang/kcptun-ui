@@ -20,7 +20,7 @@ fn main() {
     let sys_tray = tray::make_tray();
 
     let cur_dir = env::current_dir().unwrap();
-    let (app_conf, _tab_status) = settings::load_settings();
+    let app_conf = settings::load_settings();
     let app_conf = Arc::new(Mutex::new(app_conf));
 
     let conf = app_conf.clone();
@@ -30,13 +30,11 @@ fn main() {
             return;
         }
 
-        for i in 0..conf.configs.len() {
-            let i = i as u8;
-            let ins = conf.configs.get_mut(&i).unwrap();
+        conf.configs.iter_mut().for_each(|(_k, ins)| {
             if !ins.path.is_empty() {
                 ins.run();
             }
-        }
+        });
     });
 
     let conf_to_save = app_conf.clone();
@@ -54,15 +52,15 @@ fn main() {
         thread::spawn(move || {
             match conf_to_control.try_lock() {
                 Ok(mut conf) => {
-                    for idx in 0..conf.configs.len() {
-                        let idx = idx as u8;
-                        let v = conf.configs.get_mut(&idx).unwrap();
-                        if enable {
-                            v.run();
-                        } else {
-                            v.kill();
+                    conf.configs.iter_mut().for_each(|(_k, ins)| {
+                        if !ins.path.is_empty() {
+                            if enable {
+                                ins.run();
+                            } else {
+                                ins.kill();
+                            }
                         }
-                    }
+                    });
                 }
                 Err(e) => {
                     println!("[batch_control] {:?}", e);
@@ -72,15 +70,15 @@ fn main() {
     };
 
     let conf = app_conf.clone();
-    let remove_config = move |idx: u8| {
+    let remove_config = move |k: u128| {
         let conf = conf.clone();
         thread::spawn(move || {
             let mut conf = conf.lock().unwrap();
             if conf.configs.len() == 1 {
-                let ins = conf.configs.get_mut(&idx).unwrap();
+                let ins = conf.configs.get_mut(&k).unwrap();
                 *ins = Instance::new();
             } else {
-                conf.configs.remove_entry(&idx);
+                conf.configs.remove_entry(&k);
             }
         });
     };
@@ -104,8 +102,8 @@ fn main() {
                 }
 
                 if ui.button("Add Config") {
-                    let len = state.configs.len();
-                    state.configs.insert(len as u8, Instance::new());
+                    let ins = Instance::new();
+                    state.configs.insert(ins.uid, Instance::new());
                     save_conf();
                 }
 
@@ -124,7 +122,10 @@ fn main() {
                 ui.separator();
 
                 TabBar::new("AllTabs").build(ui, || {
-                    for (idx, ins) in state.configs.iter_mut() {
+                    let mut idx = 0;
+
+                    for (_k, ins) in state.configs.iter_mut() {
+                        idx += 1;
                         ins.make_tab_ui(ui, idx, cur_dir.clone(), &save_conf, &remove_config);
                     }
                 });

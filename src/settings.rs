@@ -1,8 +1,8 @@
-use std::{collections::HashMap, fs, path::Path};
+use std::collections::BTreeMap;
+use std::{fs, path::Path};
 
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
-use uuid::Uuid;
 
 use crate::{instance::Instance, settings};
 
@@ -14,34 +14,30 @@ pub struct ConfigFile {
 
 #[derive(Default, Debug)]
 pub struct State {
-    pub configs: HashMap<u8, Instance>,
+    pub configs: BTreeMap<u128, Instance>,
     pub auto_launch_kcptun: bool,
 }
 
-pub fn load_settings() -> (State, HashMap<Uuid, bool>) {
+pub fn load_settings() -> State {
     let config_file_name = "./.config.toml";
     if !Path::new(config_file_name).exists() && fs::File::create(config_file_name).is_ok() {
         println!("[settings] created new config");
     }
 
-    let mut configs: HashMap<u8, Instance> = HashMap::new();
+    let mut configs: BTreeMap<u128, Instance> = BTreeMap::new();
     let mut auto_launch_kcptun = false;
-
-    let mut tab_status = HashMap::new();
 
     if let Ok(content) = fs::read_to_string(config_file_name) {
         println!("[settings] loaded");
         if let Ok(data) = toml::from_str::<ConfigFile>(&content) {
             auto_launch_kcptun = data.auto_launch_kcptun;
 
-            for (idx, c) in data.file_paths.iter().enumerate() {
+            for (_, c) in data.file_paths.iter().enumerate() {
                 if !c.is_empty() {
                     let mut ins = Instance::new();
-                    let uid = ins.uid;
 
                     ins.update_config(c);
-                    configs.insert(idx as u8, ins);
-                    tab_status.insert(uid, true);
+                    configs.insert(ins.uid, ins);
                 }
             }
 
@@ -53,13 +49,10 @@ pub fn load_settings() -> (State, HashMap<Uuid, bool>) {
         println!("[settings] load failed");
     }
 
-    (
-        State {
-            configs,
-            auto_launch_kcptun,
-        },
-        tab_status,
-    )
+    State {
+        configs,
+        auto_launch_kcptun,
+    }
 }
 
 pub fn save(conf: &State) -> bool {
@@ -67,12 +60,10 @@ pub fn save(conf: &State) -> bool {
         file_paths: vec![],
         auto_launch_kcptun: conf.auto_launch_kcptun,
     };
-    for i in 0..conf.configs.len() {
-        let idx = i as u8;
-        if let Some(c) = conf.configs.get(&idx) {
-            if !c.path.is_empty() {
-                app_config.file_paths.push(c.path.to_owned());
-            }
+
+    for (_k, c) in &conf.configs {
+        if !c.path.is_empty() {
+            app_config.file_paths.push(c.path.to_owned());
         }
     }
 

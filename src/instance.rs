@@ -7,13 +7,12 @@ use std::{
 
 use imgui::{ListClipper, TabItem, Ui, WindowFlags};
 use rfd::FileDialog;
-use uuid::Uuid;
 
 use crate::cmd;
 
 #[derive(Default, Debug)]
 pub struct Instance {
-    pub uid: Uuid,
+    pub uid: u128,
     pub path: String,
     pub running: Arc<RwLock<bool>>,
     pub cmd: Arc<Mutex<Option<Child>>>,
@@ -23,7 +22,7 @@ pub struct Instance {
 impl Instance {
     pub fn new() -> Self {
         Self {
-            uid: Uuid::new_v4(),
+            uid: make_uid(),
             ..Default::default()
         }
     }
@@ -124,16 +123,15 @@ impl Instance {
     pub fn make_tab_ui(
         &mut self,
         ui: &Ui,
-        idx: &u8,
+        key: i32,
         cur_dir: PathBuf,
         on_config_change_cb: &dyn Fn(),
-        on_remove_config: &dyn Fn(u8),
+        on_remove_config: &dyn Fn(u128),
     ) {
-        let order = idx + 1;
-        let name = format!("#{order}");
+        let name = format!("#{key}");
 
         TabItem::new(&name).build(ui, || {
-            let seq = idx + 1;
+            let seq = key + 1;
             let mut status_text = format!("[#{seq}] Please specify your config.");
             let has_config = true;
 
@@ -160,10 +158,10 @@ impl Instance {
                 ui.same_line();
 
                 if !self.path.is_empty() {
-                    let remove_btn_text = format!("Remove Config #{order}");
+                    let remove_btn_text = format!("Remove Config #{key}");
                     if ui.button(&remove_btn_text) {
                         self.remove_config();
-                        on_remove_config(*idx);
+                        on_remove_config(self.uid);
                         on_config_change_cb();
                     }
                 }
@@ -201,4 +199,15 @@ impl Instance {
             }
         });
     }
+}
+
+pub fn make_uid() -> u128 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+
+    return since_the_epoch.as_millis();
 }

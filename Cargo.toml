@@ -27,4 +27,3 @@ tray-item = { git = "https://github.com/fgimian/tray-item-rs.git", branch = "swi
 toml = "0.5"
 serde = "1.0"
 serde_derive = "1.0"
-uuid = { version = "1.2", features = ["v4", "fast-rng", "macro-diagnostics"] }
