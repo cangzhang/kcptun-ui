@@ -6,7 +6,7 @@ use std::{
     thread,
 };
 
-use imgui::TabBar;
+use imgui::{TabBar, TabBarFlags};
 use instance::Instance;
 
 mod cmd;
@@ -49,21 +49,31 @@ fn main() {
     let conf_to_control = app_conf.clone();
     let batch_control = move |enable: bool| {
         let conf_to_control = conf_to_control.clone();
+
         thread::spawn(move || {
             match conf_to_control.try_lock() {
                 Ok(mut conf) => {
                     conf.configs.iter_mut().for_each(|(_k, ins)| {
+                        let running = ins.running.clone();
+                        let running = running.read().unwrap();
+
                         if !ins.path.is_empty() {
                             if enable {
-                                ins.run();
+                                if !*running {
+                                    ins.run();
+                                }
                             } else {
-                                ins.kill();
+                                if *running {
+                                    ins.kill();
+                                }
                             }
                         }
+
+                        drop(running);
                     });
                 }
                 Err(e) => {
-                    println!("[batch_control] {:?}", e);
+                    println!("[batch_control] error: {:?}", e);
                 }
             };
         });
@@ -88,6 +98,7 @@ fn main() {
         let _ = sys_tray;
 
         let mut state = app_conf.lock().unwrap();
+        let tab_bar_flags = TabBarFlags::AUTO_SELECT_NEW_TABS;
 
         ui.window("Main")
             .position([0.0, 0.0], imgui::Condition::Always)
@@ -121,7 +132,7 @@ fn main() {
 
                 ui.separator();
 
-                TabBar::new("AllTabs").build(ui, || {
+                TabBar::new("AllTabs").flags(tab_bar_flags).build(ui, || {
                     let mut idx = 0;
 
                     for (_k, ins) in state.configs.iter_mut() {

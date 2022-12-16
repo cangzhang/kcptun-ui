@@ -37,7 +37,7 @@ impl Instance {
     }
 
     pub fn run(&mut self) {
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = mpsc::channel::<(String, u32)>();
         let cmd = self.cmd.clone();
         let running = self.running.clone();
         let path = self.path.to_owned();
@@ -46,19 +46,19 @@ impl Instance {
             let mut running = running.write().unwrap();
             if *running {
                 println!("[instance::run] already running");
-                return;
-            }
-
-            match cmd::run(&path, Some(tx)) {
-                Ok(child) => {
-                    let mut cmd = cmd.lock().unwrap();
-                    *cmd = Some(child);
-                    *running = true;
+            } else {
+                match cmd::run(&path, Some(tx)) {
+                    Ok(child) => {
+                        let mut cmd = cmd.lock().unwrap();
+                        *cmd = Some(child);
+                        *running = true;
+                    }
+                    Err(e) => {
+                        println!("[run] error {:?}", e);
+                    }
                 }
-                Err(e) => {
-                    println!("[run] error {:?}", e);
-                }
             }
+            drop(running);
         });
 
         let logs = self.logs.clone();
@@ -89,6 +89,9 @@ impl Instance {
             *running = false;
             let mut logs = logs.write().unwrap();
             *logs = vec![];
+
+            drop(running);
+            drop(logs);
         });
     }
 
@@ -111,7 +114,6 @@ impl Instance {
 
     pub fn toggle_status(&mut self) {
         let running = self.running.clone();
-        println!("{:?}", running);
         let running = running.read().unwrap();
         if *running {
             self.kill();
@@ -129,74 +131,67 @@ impl Instance {
         on_remove_config: &dyn Fn(u128),
     ) {
         let name = format!("#{key}");
+        let running = self.running.clone();
+        let running = running.read().unwrap();
 
         TabItem::new(&name).build(ui, || {
-            let seq = key + 1;
-            let mut status_text = format!("[#{seq}] Please specify your config.");
-            let has_config = true;
+            let mut status_text = format!("[#{key}] Please specify your config.");
 
-            if has_config {
-                let running = self.running.clone();
-                let running = running.read().unwrap();
+            if !self.path.is_empty() {
+                status_text = format!("Path: {}. Running: {}", self.path, *running);
+            }
 
-                if !self.path.is_empty() {
-                    status_text = format!("Path: {}. Running: {}", self.path, *running);
-                }
+            ui.text(&status_text);
 
-                ui.text(&status_text);
+            let select_text = if self.path.is_empty() {
+                "Select"
+            } else {
+                "Re-Select"
+            };
+            if ui.button(select_text) {
+                self.update_config_path(cur_dir);
+                on_config_change_cb();
+            }
 
-                let select_text = if self.path.is_empty() {
-                    "Select"
-                } else {
-                    "Re-Select"
-                };
-                if ui.button(select_text) {
-                    self.update_config_path(cur_dir);
+            ui.same_line();
+
+            if !self.path.is_empty() {
+                let remove_btn_text = format!("Remove Config #{key}");
+                if ui.button(&remove_btn_text) {
+                    self.remove_config();
+                    on_remove_config(self.uid);
                     on_config_change_cb();
                 }
+            }
 
-                ui.same_line();
-
-                if !self.path.is_empty() {
-                    let remove_btn_text = format!("Remove Config #{key}");
-                    if ui.button(&remove_btn_text) {
-                        self.remove_config();
-                        on_remove_config(self.uid);
-                        on_config_change_cb();
-                    }
-                }
-
-                if !self.path.is_empty() {
-                    if *running {
-                        if ui.button("Stop") {
-                            self.toggle_status();
-                        }
-                    } else if ui.button("Run") {
+            if !self.path.is_empty() {
+                if *running {
+                    if ui.button("Stop") {
                         self.toggle_status();
                     }
+                } else if ui.button("Run") {
+                    self.toggle_status();
                 }
+            }
 
-                ui.separator();
+            ui.separator();
 
-                let logs = self.logs.read().unwrap();
-                ui.child_window(self.uid.to_string())
-                    .flags(WindowFlags::HORIZONTAL_SCROLLBAR)
-                    .build(|| {
-                        if !logs.is_empty() {
-                            let mut clipper = ListClipper::new(logs.len() as i32).begin(ui);
-                            while clipper.step() {
-                                for line in clipper.display_start()..clipper.display_end() {
-                                    ui.text(&logs[line as usize]);
-                                }
+            let logs = self.logs.read().unwrap();
+            ui.child_window(self.uid.to_string())
+                .flags(WindowFlags::HORIZONTAL_SCROLLBAR)
+                .build(|| {
+                    if !logs.is_empty() {
+                        let mut clipper = ListClipper::new(logs.len() as i32).begin(ui);
+                        while clipper.step() {
+                            for line in clipper.display_start()..clipper.display_end() {
+                                ui.text(&logs[line as usize]);
                             }
                         }
-                        if ui.scroll_y() >= ui.scroll_max_y() {
-                            ui.set_scroll_here_y();
-                        }
-                    });
-            } else {
-                ui.text(&status_text);
-            }
+                    }
+                    if ui.scroll_y() >= ui.scroll_max_y() {
+                        ui.set_scroll_here_y();
+                    }
+                });
         });
     }
 }
