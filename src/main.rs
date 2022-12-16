@@ -15,7 +15,6 @@ mod settings;
 mod support;
 mod tray;
 
-// https://github.com/imgui-rs/imgui-rs/issues/669#issuecomment-1257644053
 fn main() {
     let sys_tray = tray::make_tray();
 

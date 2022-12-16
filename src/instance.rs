@@ -33,7 +33,6 @@ impl Instance {
         }
 
         self.path = path.to_owned();
-        // self.uid = Uuid::new_v4();
     }
 
     pub fn run(&mut self) {
