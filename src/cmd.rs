@@ -3,8 +3,9 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::Sender;
 use std::{env, thread};
 
-pub fn run(conf_path: &String, tx: Option<Sender<(String, u32)>>) -> Result<Child, Error> {
-    println!("[cmd::run] current dir {:?}", env::current_dir().unwrap());
+pub fn run(conf_path: &String, tx: Sender<(String, u32)>) -> Result<Child, Error> {
+    #[cfg(target_os = "windows")]
+    use std::os::windows::process::CommandExt;
 
     let bin_path = match env::consts::OS {
         "windows" => "./client_windows_amd64.exe",
@@ -12,11 +13,21 @@ pub fn run(conf_path: &String, tx: Option<Sender<(String, u32)>>) -> Result<Chil
         _ => "./client_linux_amd64",
     };
 
+    #[cfg(not(target_os = "windows"))]
     let mut cmd = Command::new(bin_path)
         .args(["-c", conf_path])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
+
+    #[cfg(target_os = "windows")]
+    let mut cmd = Command::new(bin_path)
+        .args(["-c", conf_path])
+        .creation_flags(0x08000000)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()?;
+
     let pid = cmd.id();
     let output = cmd
         .stderr
@@ -29,9 +40,7 @@ pub fn run(conf_path: &String, tx: Option<Sender<(String, u32)>>) -> Result<Chil
             .lines()
             .filter_map(|line| line.ok())
             .for_each(|line| {
-                if let Some(tx) = &tx {
-                    let _r = tx.send((line, pid));
-                }
+                let _r = tx.send((line, pid));
             });
     });
 
@@ -49,7 +58,7 @@ mod tests {
     fn capture_stdout() {
         let (tx, rx) = mpsc::channel();
         let conf = String::from("./config.json");
-        let r = crate::cmd::run(&conf, Some(tx));
+        let r = crate::cmd::run(&conf, tx);
         println!("[run result] {:?}", r);
         loop {
             let r = rx.recv();

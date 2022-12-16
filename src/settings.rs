@@ -42,8 +42,12 @@ pub fn load_settings() -> State {
             }
 
             if data.file_paths.is_empty() {
-                configs.insert(0, Instance::new());
+                let ins = Instance::new();
+                configs.insert(ins.uid, ins);
             }
+        } else {
+            let ins = Instance::new();
+            configs.insert(ins.uid, ins);
         }
     } else {
         println!("[settings] load failed");
@@ -61,7 +65,7 @@ pub fn save(conf: &State) -> bool {
         auto_launch_kcptun: conf.auto_launch_kcptun,
     };
 
-    for (_k, c) in &conf.configs {
+    for c in conf.configs.values() {
         if !c.path.is_empty() {
             app_config.file_paths.push(c.path.to_owned());
         }

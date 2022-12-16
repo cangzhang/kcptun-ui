@@ -43,12 +43,14 @@ impl Instance {
 
         thread::spawn(move || {
             let mut running = running.write().unwrap();
+            let mut cmd = cmd.lock().unwrap();
+
             if *running {
                 println!("[instance::run] already running");
             } else {
-                match cmd::run(&path, Some(tx)) {
+                match cmd::run(&path, tx.clone()) {
                     Ok(child) => {
-                        let mut cmd = cmd.lock().unwrap();
+                        println!("[cmd::run] ok");
                         *cmd = Some(child);
                         *running = true;
                     }
@@ -58,16 +60,22 @@ impl Instance {
                 }
             }
             drop(running);
+            drop(cmd);
         });
 
         let logs = self.logs.clone();
         thread::spawn(move || loop {
-            let mut write_guard = logs.write().unwrap();
-            if let Ok((log_line, _pid)) = rx.try_recv() {
-                println!("[receiver] {:?}", log_line);
-                write_guard.push(log_line);
+            let mut logs = logs.write().unwrap();
+            match rx.try_recv() {
+                Ok((log_line, _pid)) => {
+                    println!("[receiver] {:?}", log_line);
+                    logs.push(log_line);
+                }
+                Err(_e) => {
+                    // println!("{:?}", e);
+                }
             }
-            drop(write_guard);
+            drop(logs);
         });
     }
 
@@ -83,13 +91,14 @@ impl Instance {
                 println!("[instance::kill] {:?}", r);
             }
             *cmd = None;
+            drop(cmd);
 
             let mut running = running.write().unwrap();
             *running = false;
+            drop(running);
+
             let mut logs = logs.write().unwrap();
             *logs = vec![];
-
-            drop(running);
             drop(logs);
         });
     }
@@ -130,8 +139,12 @@ impl Instance {
         on_remove_config: &dyn Fn(u128),
     ) {
         let name = format!("#{key}");
+
         let running = self.running.clone();
         let running = running.read().unwrap();
+
+        let logs = self.logs.clone();
+        let logs = logs.read().unwrap();
 
         TabItem::new(&name).build(ui, || {
             let mut status_text = format!("[#{key}] Please specify your config.");
@@ -175,7 +188,6 @@ impl Instance {
 
             ui.separator();
 
-            let logs = self.logs.read().unwrap();
             ui.child_window(self.uid.to_string())
                 .flags(WindowFlags::HORIZONTAL_SCROLLBAR)
                 .build(|| {
@@ -203,5 +215,5 @@ pub fn make_uid() -> u128 {
         .duration_since(UNIX_EPOCH)
         .expect("Time went backwards");
 
-    return since_the_epoch.as_millis();
+    since_the_epoch.as_millis()
 }
