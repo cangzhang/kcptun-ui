@@ -2,7 +2,6 @@ use std::{collections::HashMap, path::PathBuf};
 
 use imgui::{ListClipper, TabItem, Ui, WindowFlags};
 use rfd::FileDialog;
-use uuid::Uuid;
 
 use crate::instance::Instance;
 
@@ -11,13 +10,10 @@ pub fn make_config_tab(
     tab_index: u8,
     cur_dir: &PathBuf,
     config_map: &mut HashMap<u8, Instance>,
-    tab_status: &mut HashMap<Uuid, bool>,
+    on_config_change_cb: &dyn Fn(),
 ) {
     let order = tab_index + 1;
     let tab_name = format!("Conf #{}", order);
-
-    let uid = config_map.get(&tab_index).unwrap().uid.clone();
-    tab_status.entry(uid).or_insert(true);
 
     TabItem::new(tab_name).build(ui, || {
         let seq = tab_index + 1;
@@ -27,7 +23,6 @@ pub fn make_config_tab(
         let mut ins = config_map.get_mut(&tab_index).unwrap();
 
         if has_config {
-            // if let Some(ins) = config_map.get_mut(&tab_index) {
             let running = ins.running.clone();
             let running = running.lock().unwrap();
 
@@ -51,6 +46,7 @@ pub fn make_config_tab(
                     let f = f.to_string_lossy().into_owned();
                     ins.kill();
                     ins.path = f;
+                    on_config_change_cb();
                 }
             }
 
@@ -61,17 +57,20 @@ pub fn make_config_tab(
                 if ui.button(&remove_btn_text) {
                     ins.kill();
                     ins.path = String::new();
+                    on_config_change_cb();
                 }
             }
 
             ui.spacing();
 
-            if *running {
-                if ui.button("Stop") {
-                    ins.kill();
+            if !ins.path.is_empty() {
+                if *running {
+                    if ui.button("Stop") {
+                        ins.kill();
+                    }
+                } else if ui.button("Run") {
+                    ins.run();
                 }
-            } else if ui.button("Run") {
-                ins.run();
             }
 
             ui.spacing();
@@ -93,7 +92,6 @@ pub fn make_config_tab(
                         ui.set_scroll_here_y();
                     }
                 });
-            // }
         } else {
             ui.text(&status_text);
 
@@ -109,6 +107,7 @@ pub fn make_config_tab(
                     let mut ins = Instance::new();
                     ins.path = f;
                     config_map.insert(tab_index, ins);
+                    on_config_change_cb();
                 }
             }
         }

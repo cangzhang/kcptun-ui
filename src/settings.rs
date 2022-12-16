@@ -84,20 +84,11 @@ pub fn save(conf: &State) -> bool {
         }
     }
 
-    println!("[current app config] {:?}", app_config);
+    println!("[settings] {:?}", app_config);
     let data = toml::to_string_pretty(&app_config).unwrap();
     if fs::write("./.config.toml", data).is_ok() {
         return true;
     }
 
     false
-}
-
-#[allow(dead_code)]
-pub fn auto_save(conf: Arc<Mutex<State>>) {
-    thread::spawn(move || loop {
-        thread::sleep(Duration::from_secs(10));
-        let r = save(&conf.lock().unwrap());
-        println!("[settings::auto_save] {r}");
-    });
 }
