@@ -13,7 +13,6 @@ mod cmd;
 mod instance;
 mod settings;
 mod support;
-mod tab;
 mod tray;
 
 // https://github.com/imgui-rs/imgui-rs/issues/669#issuecomment-1257644053
@@ -49,9 +48,47 @@ fn main() {
         });
     };
 
+    let conf_to_control = app_conf.clone();
+    let batch_control = move |enable: bool| {
+        let conf_to_control = conf_to_control.clone();
+        thread::spawn(move || {
+            match conf_to_control.try_lock() {
+                Ok(mut conf) => {
+                    for idx in 0..conf.configs.len() {
+                        let idx = idx as u8;
+                        let v = conf.configs.get_mut(&idx).unwrap();
+                        if enable {
+                            v.run();
+                        } else {
+                            v.kill();
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("[batch_control] {:?}", e);
+                }
+            };
+        });
+    };
+
+    let conf = app_conf.clone();
+    let remove_config = move |idx: u8| {
+        let conf = conf.clone();
+        thread::spawn(move || {
+            let mut conf = conf.lock().unwrap();
+            if conf.configs.len() == 1 {
+                let ins = conf.configs.get_mut(&idx).unwrap();
+                *ins = Instance::new();
+            } else {
+                conf.configs.remove_entry(&idx);
+            }
+        });
+    };
+
     let system = support::init();
     system.main_loop(move |_run, ui| {
         let _ = sys_tray;
+
         let mut state = app_conf.lock().unwrap();
 
         ui.window("Main")
@@ -59,7 +96,6 @@ fn main() {
             .size(ui.io().display_size, imgui::Condition::Always)
             .no_decoration()
             .build(|| {
-                // ui.text("KCPTUN UI");
                 if ui.checkbox(
                     "Launch kcptun when starting app",
                     &mut state.auto_launch_kcptun,
@@ -67,20 +103,29 @@ fn main() {
                     save_conf();
                 }
 
-                // ui.spacing();
-                // ui.same_line();
-
                 if ui.button("Add Config") {
                     let len = state.configs.len();
                     state.configs.insert(len as u8, Instance::new());
                     save_conf();
                 }
 
+                ui.same_line();
+
+                if ui.button("Start ALL") {
+                    batch_control(true);
+                }
+
+                ui.same_line();
+
+                if ui.button("Stop ALL") {
+                    batch_control(false);
+                }
+
                 ui.separator();
 
                 TabBar::new("AllTabs").build(ui, || {
-                    for i in 0..state.configs.len() {
-                        tab::make_config_tab(ui, i as u8, &cur_dir, &mut state.configs, &save_conf);
+                    for (idx, ins) in state.configs.iter_mut() {
+                        ins.make_tab_ui(ui, idx, cur_dir.clone(), &save_conf, &remove_config);
                     }
                 });
             });

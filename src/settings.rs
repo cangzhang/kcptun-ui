@@ -12,6 +12,7 @@ pub struct ConfigFile {
     pub auto_launch_kcptun: bool,
 }
 
+#[derive(Default, Debug)]
 pub struct State {
     pub configs: HashMap<u8, Instance>,
     pub auto_launch_kcptun: bool,
