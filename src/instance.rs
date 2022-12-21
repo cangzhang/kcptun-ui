@@ -64,18 +64,26 @@ impl Instance {
         });
 
         let logs = self.logs.clone();
-        thread::spawn(move || loop {
-            let mut logs = logs.write().unwrap();
-            match rx.try_recv() {
-                Ok((log_line, _pid)) => {
-                    println!("[receiver] {:?}", log_line);
-                    logs.push(log_line);
+        let running = self.running.clone();
+        thread::spawn(move || {
+            loop {
+                let running = running.read().unwrap();
+                if !*running {
+                    break;
                 }
-                Err(_e) => {
-                    // println!("{:?}", e);
+
+                let mut logs = logs.write().unwrap();
+                match rx.try_recv() {
+                    Ok((log_line, _pid)) => {
+                        println!("[receiver] {:?}", log_line);
+                        logs.push(log_line);
+                    }
+                    Err(_e) => {
+                        // println!("[log reveiver] {:?}", e);
+                    }
                 }
+                drop(logs);
             }
-            drop(logs);
         });
     }
 
