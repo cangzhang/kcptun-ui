@@ -4,3 +4,5 @@ config*.json
 .config.toml
 .fleet/
 client_*_amd64
+kcptun-ui*
+.DS_Store
