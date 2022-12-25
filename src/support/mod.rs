@@ -11,7 +11,8 @@ use std::time::Instant;
 mod clipboard;
 
 pub fn load_icon() -> Icon {
-    let image = image::open("./resources/icon.ico")
+    let icon_bytes = include_bytes!("../../resources/icon.ico");
+    let image = image::load_from_memory(icon_bytes)
         .expect("Failed to open icon path")
         .into_rgba8();
     let (width, height) = image.dimensions();
