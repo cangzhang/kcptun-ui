@@ -6,7 +6,10 @@ use glium::{Display, Surface};
 use imgui::{Context, FontConfig, FontGlyphRanges, FontSource, Ui};
 use imgui_glium_renderer::Renderer;
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
+use crate::settings::State;
 
 mod clipboard;
 
@@ -27,9 +30,10 @@ pub struct System {
     pub platform: WinitPlatform,
     pub renderer: Renderer,
     pub font_size: f32,
+    pub app_state: Arc<Mutex<State>>,
 }
 
-pub fn init() -> System {
+pub fn init(app_state: Arc<Mutex<State>>) -> System {
     let title = "Kcptun UI";
     let event_loop = EventLoop::new();
     let context = glutin::ContextBuilder::new().with_vsync(true);
@@ -54,6 +58,7 @@ pub fn init() -> System {
         let window = gl_window.window();
         let icon = load_icon();
         window.set_window_icon(Some(icon));
+        window.set_ime_allowed(true);
 
         let dpi_mode = if let Ok(factor) = std::env::var("IMGUI_EXAMPLE_FORCE_DPI_FACTOR") {
             // Allow forcing of HiDPI factor for debugging purposes
@@ -102,6 +107,7 @@ pub fn init() -> System {
         platform,
         renderer,
         font_size,
+        app_state,
     }
 }
 
@@ -152,7 +158,14 @@ impl System {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
-            } => *control_flow = ControlFlow::Exit,
+            } => {
+                let mut state = self.app_state.lock().unwrap();
+                for (_, ins) in state.configs.iter_mut() {
+                    ins.kill();
+                }
+
+                *control_flow = ControlFlow::Exit
+            },
             event => {
                 let gl_window = display.gl_window();
                 platform.handle_event(imgui.io_mut(), gl_window.window(), &event);

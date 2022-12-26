@@ -92,7 +92,8 @@ fn main() {
         });
     };
 
-    let system = support::init();
+    let conf = app_conf.clone();
+    let system = support::init(conf);
     system.main_loop(move |_run, ui| {
         let _ = sys_tray;
 

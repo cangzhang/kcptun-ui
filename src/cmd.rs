@@ -14,22 +14,22 @@ pub fn run(conf_path: &String, tx: Sender<(String, u32)>) -> Result<Child, Error
     };
 
     #[cfg(not(target_os = "windows"))]
-    let mut cmd = Command::new(bin_path)
+    let mut handler = Command::new(bin_path)
         .args(["-c", conf_path])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
 
     #[cfg(target_os = "windows")]
-    let mut cmd = Command::new(bin_path)
+    let mut handler = Command::new(bin_path)
         .args(["-c", conf_path])
         .creation_flags(0x08000000)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
 
-    let pid = cmd.id();
-    let output = cmd
+    let pid = handler.id();
+    let output = handler
         .stderr
         .take()
         .ok_or_else(|| Error::new(ErrorKind::Other, "Could not capture standard output."))?;
@@ -44,7 +44,7 @@ pub fn run(conf_path: &String, tx: Sender<(String, u32)>) -> Result<Child, Error
             });
     });
 
-    Ok(cmd)
+    Ok(handler)
 }
 
 #[cfg(test)]
