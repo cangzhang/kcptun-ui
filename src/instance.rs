@@ -223,5 +223,5 @@ pub fn make_uid() -> u128 {
         .duration_since(UNIX_EPOCH)
         .expect("Time went backwards");
 
-    since_the_epoch.as_millis()
+    since_the_epoch.as_nanos()
 }

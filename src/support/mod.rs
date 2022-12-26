@@ -1,6 +1,6 @@
 use glium::glutin;
 use glium::glutin::event::{Event, WindowEvent};
-use glium::glutin::event_loop::{ControlFlow, EventLoop};
+use glium::glutin::event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy};
 use glium::glutin::window::{Icon, WindowBuilder};
 use glium::{Display, Surface};
 use imgui::{Context, FontConfig, FontGlyphRanges, FontSource, Ui};
@@ -23,8 +23,15 @@ pub fn load_icon() -> Icon {
     Icon::from_rgba(rgba, width, height).unwrap()
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum CustomEvent {
+    ToggleMainWindow,
+    Quit,
+}
+
 pub struct System {
-    pub event_loop: EventLoop<()>,
+    pub event_loop: EventLoop<CustomEvent>,
+    pub event_loop_proxy: EventLoopProxy<CustomEvent>,
     pub display: glium::Display,
     pub imgui: Context,
     pub platform: WinitPlatform,
@@ -35,7 +42,10 @@ pub struct System {
 
 pub fn init(app_state: Arc<Mutex<State>>) -> System {
     let title = "Kcptun UI";
-    let event_loop = EventLoop::new();
+
+    let event_loop = EventLoopBuilder::<CustomEvent>::with_user_event().build();
+    let event_loop_proxy = event_loop.create_proxy();
+
     let context = glutin::ContextBuilder::new().with_vsync(true);
     let builder = WindowBuilder::new()
         .with_title(title.to_owned())
@@ -59,6 +69,11 @@ pub fn init(app_state: Arc<Mutex<State>>) -> System {
         let icon = load_icon();
         window.set_window_icon(Some(icon));
         window.set_ime_allowed(true);
+
+        let state = app_state.lock().unwrap();
+        if state.silent_start {
+            window.set_visible(false);
+        }
 
         let dpi_mode = if let Ok(factor) = std::env::var("IMGUI_EXAMPLE_FORCE_DPI_FACTOR") {
             // Allow forcing of HiDPI factor for debugging purposes
@@ -102,6 +117,7 @@ pub fn init(app_state: Arc<Mutex<State>>) -> System {
 
     System {
         event_loop,
+        event_loop_proxy,
         display,
         imgui,
         platform,
@@ -124,6 +140,24 @@ impl System {
         let mut last_frame = Instant::now();
 
         event_loop.run(move |event, _, control_flow| match event {
+            Event::UserEvent(ev) => match ev {
+                CustomEvent::ToggleMainWindow => {
+                    let win_ctx = display.gl_window();
+                    let win = win_ctx.window();
+                    if let Some(v) = win.is_visible() {
+                        win.set_visible(!v);
+                        if !v {
+                            win.focus_window();
+                        }
+                    }
+                }
+                CustomEvent::Quit => {
+                    // todo: same with `CloseRequest`
+                    let mut state = self.app_state.lock().unwrap();
+                    state.kill_all();
+                    *control_flow = ControlFlow::Exit
+                }
+            },
             Event::NewEvents(_) => {
                 let now = Instant::now();
                 imgui.io_mut().update_delta_time(now - last_frame);
@@ -160,12 +194,9 @@ impl System {
                 ..
             } => {
                 let mut state = self.app_state.lock().unwrap();
-                for (_, ins) in state.configs.iter_mut() {
-                    ins.kill();
-                }
-
+                state.kill_all();
                 *control_flow = ControlFlow::Exit
-            },
+            }
             event => {
                 let gl_window = display.gl_window();
                 platform.handle_event(imgui.io_mut(), gl_window.window(), &event);

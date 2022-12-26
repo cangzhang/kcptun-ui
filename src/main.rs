@@ -16,8 +16,6 @@ mod support;
 mod tray;
 
 fn main() {
-    let sys_tray = tray::make_tray();
-
     let cur_dir = env::current_dir().unwrap();
     let app_conf = settings::load_settings();
     let app_conf = Arc::new(Mutex::new(app_conf));
@@ -94,6 +92,9 @@ fn main() {
 
     let conf = app_conf.clone();
     let system = support::init(conf);
+    let proxy = system.event_loop_proxy.clone();
+    let sys_tray = tray::make_tray(proxy);
+
     system.main_loop(move |_run, ui| {
         let _ = sys_tray;
 
@@ -105,8 +106,14 @@ fn main() {
             .size(ui.io().display_size, imgui::Condition::Always)
             .no_decoration()
             .build(|| {
+                if ui.checkbox("Silent Start", &mut state.silent_start) {
+                    save_conf();
+                }
+
+                ui.separator();
+
                 if ui.checkbox(
-                    "Launch kcptun when starting app",
+                    "Launch Kcptun When Starting",
                     &mut state.auto_launch_kcptun,
                 ) {
                     save_conf();
